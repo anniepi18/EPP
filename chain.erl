@@ -8,86 +8,27 @@ start() ->
     link(Serv1),
     link(Serv2),
     link(Serv3),
-    % Serv1 ! {add, 1, 2}.
     register(serv2, Serv2),
     register(serv3, Serv3),
     loop(Serv1, Serv2, Serv3).
 
-% loop(Serv1, Serv2, Serv3) ->
-%     io:format("Enter message (or 'all_done' to quit):~n"),
-%     Input = string:trim(io:get_line("")), % Read input and trim leading/trailing whitespace
-%     % io:format("Parsed is: ~s.", [Input]),
-%     case Input of
-%         "all_done" ->
-%             serv1 ! halt;
-%         _ ->
-%             % Try parsing the input safely, handle errors if input is invalid
-%             case erl_scan:string(Input) of
-
-%                 {ok, Tokens, _} ->
-%                     case erl_parse:parse_exprs(Tokens) of
-%                         {ok, [Parsed]} ->
-%                             TrimmedInput = string:trim(Input, trailing, "."),
-%                             % io:format("Parsed is: ~s.", [Parsed]),
-%                             io:format("Parsed is: ~s~n.", [TrimmedInput]),
-%                             io:format("Parsed is: ~s~n.", [Input]),
-%                             Serv1 ! Input,
-%                             Serv1 ! {add, 1, 3},
-%                             Serv1 ! Parsed,
-%                             % serv1 ! Input,
-%                             loop(Serv1, Serv2, Serv3);
-%                         _Error ->
-%                             io:format("Invalid input. Please try again.~n"),
-%                             loop(Serv1, Serv2, Serv3)
-%                     end;
-%                 _Error ->
-%                     io:format("Invalid input. Please try again.~n"),
-%                     loop(Serv1, Serv2, Serv3)
-%             end
-%     end.
-
 loop(Serv1, Serv2, Serv3) ->
     io:format("Enter message (or 'all_done' to quit):~n"),
-    Input = string:trim(io:get_line("")),
+    {ok, Input} = io:read(""),
     case Input of
         "all_done" ->
             Serv1 ! halt;
         _ ->
-            % Try parsing the input safely, handle errors if input is invalid
-            case catch erl_scan:string(Input ++ ".") of
-                {ok, Tokens, _} ->
-                    case catch erl_parse:parse_exprs(Tokens) of
-                        {ok, [Parsed]} ->
-                            % The parsed result might be an AST form, handle accordingly
-                            case Parsed of
-                                {tuple, _, Elements} ->
-                                    % Convert AST representation to an Erlang tuple
-                                    Tuple = list_to_tuple([element(3, E) || E <- Elements]),
-                                    Serv1 ! Tuple,
-                                    loop(Serv1, Serv2, Serv3);
-                                _ ->
-                                    io:format("Unsupported command. Please try again.~n"),
-                                    loop(Serv1, Serv2, Serv3)
-                            end;
-                        _ ->
-                            io:format("Invalid input. Please try again.~n"),
-                            loop(Serv1, Serv2, Serv3)
-                    end;
-                _ ->
-                    io:format("Invalid input. Please try again.~n"),
-                    loop(Serv1, Serv2, Serv3)
-            end
+            Serv1 ! Input,
+            loop(Serv1, Serv2, Serv3)   
     end.
-
-
-
 
 serv1() ->
     receive
         halt ->
             io:format("(serv1) Halting~n"),
             whereis(serv2) ! halt;
-        {add, A, B} when is_number(A), is_number(B) ->
+        {'add', A, B} when is_number(A), is_number(B) ->
             Result = A + B,
             io:format("(serv1) ~p + ~p = ~p~n", [A, B, Result]),
             serv1();
